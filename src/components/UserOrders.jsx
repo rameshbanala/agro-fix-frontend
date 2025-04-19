@@ -34,21 +34,19 @@ const UserOrders = () => {
     fetchOrders();
   }, []);
 
-  // Cancel an order
   const handleCancel = async (orderId) => {
     if (!window.confirm("Are you sure you want to cancel this order?")) return;
     setCancelLoading(orderId);
     setError(null);
     try {
       const res = await fetch(
-        import.meta.env.VITE_BACKEND_URL + `/orders/${orderId}/status`,
+        import.meta.env.VITE_BACKEND_URL + `/orders/${orderId}/cancel`,
         {
           method: "PUT",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${getToken()}`,
+            // No 'Content-Type' or body needed
           },
-          body: JSON.stringify({ status: "cancelled" }),
         }
       );
       const data = await res.json();
