@@ -43,8 +43,8 @@ const LoginPage = () => {
       localStorage.setItem("user", JSON.stringify(user));
       Cookies.set("token", data.token, { expires: 1 });
        // Set token in cookies for 7 days
-       location.reload();
       navigate("/", { replace: true });
+      location.reload();
     } catch (err) {
       setError(err.message);
     } finally {

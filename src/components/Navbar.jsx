@@ -33,7 +33,7 @@ const Navbar = () => {
     Cookies.remove("token");
     localStorage.removeItem("user");
     alert("Logged out successfully!");
-    navigate("/login", { replace: true });
+    navigate("/", { replace: true });
     window.location.reload();
   };
 
