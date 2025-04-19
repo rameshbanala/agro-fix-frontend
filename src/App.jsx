@@ -53,6 +53,7 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+            <Route path="*" element={<LandingPage />} />
           </Routes>
         </main>
       </div>

@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import Cookies from "js-cookie";
@@ -6,6 +6,7 @@ import Cookies from "js-cookie";
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Check login status
   const isLogin = Cookies.get("token") !== undefined;
@@ -32,6 +33,7 @@ const Navbar = () => {
     Cookies.remove("token");
     localStorage.removeItem("user");
     alert("Logged out successfully!");
+    navigate("/login", { replace: true });
     window.location.reload();
   };
 
