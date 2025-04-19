@@ -77,7 +77,7 @@ const UserProducts = () => {
       setOrderSuccess(`Order placed! Order ID: ${data.order_id}`);
       setCart({});
       setAddress("");
-      location.reload(); // Reload to fetch updated product stock
+      //location.reload(); // Reload to fetch updated product stock
     } catch (err) {
       setError(err.message || "Order failed");
     } finally {
