@@ -8,6 +8,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import UserProducts from "./components/UserProducts";
 import UserOrders from "./components/UserOrders";
 import AdminOrders from "./components/AdminOrders";
+import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
 
 const App = () => {
   const userInfo = localStorage.getItem("user");
@@ -21,6 +23,8 @@ const App = () => {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route
               path="/products"
               element={
