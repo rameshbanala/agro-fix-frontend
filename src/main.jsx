@@ -1,10 +1,19 @@
 import { createRoot } from "react-dom/client";
+import { StrictMode } from "react";
 import "./index.css";
 import App from "./App.jsx";
-import { StrictMode } from "react";
+import { AuthProvider } from "./context/AuthContext.jsx";
+import { ToastProvider } from "./context/ToastContext.jsx";
+import { CartProvider } from "./context/CartContext.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <App />
+    <ToastProvider>
+      <AuthProvider>
+        <CartProvider>
+          <App />
+        </CartProvider>
+      </AuthProvider>
+    </ToastProvider>
   </StrictMode>
 );
