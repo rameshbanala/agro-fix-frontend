@@ -1,21 +1,18 @@
-import Cookies from "js-cookie";
 import { Navigate, useLocation } from "react-router-dom";
-const ProtectedRoute = ({ user, allowedRoles, children }) => {
+import { useAuth } from "../context/AuthContext";
+
+const ProtectedRoute = ({ allowedRoles, children }) => {
   const location = useLocation();
-  console.log(user)
+  const { user } = useAuth();
 
   if (!user) {
-    // User not authenticated, redirect to login
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
-  
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    // User authenticated but lacks required role, redirect to home
     return <Navigate to="/" replace />;
   }
 
-  // User authenticated and has required role
   return children;
 };
 

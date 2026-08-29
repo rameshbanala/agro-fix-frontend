@@ -1,19 +1,19 @@
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import LandingPage from "./components/LandingPage";
-import LoginPage from "./components/LoginPage";
 import Navbar from "./components/Navbar";
-import SignupPage from "./components/SignupPage";
-import ProductListAdmin from "./components/ProductListAdmin";
+import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
-import UserProducts from "./components/UserProducts";
-import UserOrders from "./components/UserOrders";
-import AdminOrders from "./components/AdminOrders";
-import ForgotPassword from "./components/ForgotPassword";
-import ResetPassword from "./components/ResetPassword";
+import LandingPage from "./pages/LandingPage";
+import LoginPage from "./pages/LoginPage";
+import SignupPage from "./pages/SignupPage";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import NotFound from "./pages/NotFound";
+import ProductListAdmin from "./pages/admin/ProductListAdmin";
+import AdminOrders from "./pages/admin/AdminOrders";
+import UserProducts from "./pages/user/UserProducts";
+import UserOrders from "./pages/user/UserOrders";
 
 const App = () => {
-  const userInfo = localStorage.getItem("user");
-  const user = userInfo ? JSON.parse(userInfo) : null;
   return (
     <Router>
       <div className="min-h-screen flex flex-col">
@@ -28,7 +28,7 @@ const App = () => {
             <Route
               path="/products"
               element={
-                <ProtectedRoute user={user} allowedRoles={["admin"]}>
+                <ProtectedRoute allowedRoles={["admin"]}>
                   <ProductListAdmin />
                 </ProtectedRoute>
               }
@@ -36,7 +36,7 @@ const App = () => {
             <Route
               path="/orders"
               element={
-                <ProtectedRoute user={user} allowedRoles={["admin"]}>
+                <ProtectedRoute allowedRoles={["admin"]}>
                   <AdminOrders />
                 </ProtectedRoute>
               }
@@ -44,7 +44,7 @@ const App = () => {
             <Route
               path="/user/products"
               element={
-                <ProtectedRoute user={user}>
+                <ProtectedRoute>
                   <UserProducts />
                 </ProtectedRoute>
               }
@@ -52,14 +52,15 @@ const App = () => {
             <Route
               path="/user/orders"
               element={
-                <ProtectedRoute user={user}>
+                <ProtectedRoute>
                   <UserOrders />
                 </ProtectedRoute>
               }
             />
-            <Route path="*" element={<LandingPage />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
+        <Footer />
       </div>
     </Router>
   );
