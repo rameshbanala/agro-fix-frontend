@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { ShoppingBag } from "lucide-react";
+import { useLocation } from "react-router-dom";
+import { ShoppingBag, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import * as productsApi from "../../api/products";
 import * as ordersApi from "../../api/orders";
+import * as addressesApi from "../../api/addresses";
 import { useCart } from "../../context/CartContext";
 import { useToast } from "../../context/ToastContext";
 import Button from "../../components/ui/Button";
@@ -9,21 +11,64 @@ import Spinner from "../../components/ui/Spinner";
 import { formatCurrency } from "../../utils/format";
 
 const UserProducts = () => {
+  const location = useLocation();
   const [products, setProducts] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
+  const [categories, setCategories] = useState([]);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("");
+  const [sort, setSort] = useState("newest");
   const [loadingProducts, setLoadingProducts] = useState(true);
-  const [address, setAddress] = useState("");
   const [loadError, setLoadError] = useState("");
+
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState("new");
+  const [address, setAddress] = useState("");
+  const [saveAddress, setSaveAddress] = useState(false);
+
   const [reviewing, setReviewing] = useState(false);
   const [placing, setPlacing] = useState(false);
   const { cart, setQuantity, clearCart } = useCart();
   const toast = useToast();
 
+  // If we arrived here via a "Reorder" action, the cart was already
+  // pre-filled by UserOrders — nothing further to do here.
+  useEffect(() => {
+    if (location.state?.reordered) {
+      toast.success("Items from that order have been added to your cart.");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    productsApi.listCategories().then(setCategories).catch(() => {});
+    addressesApi
+      .listAddresses()
+      .then((data) => {
+        setAddresses(data);
+        const def = data.find((a) => a.is_default);
+        if (def) {
+          setSelectedAddressId(def.id);
+          setAddress(def.address_text);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     const fetchProducts = async () => {
+      setLoadingProducts(true);
       setLoadError("");
       try {
-        const data = await productsApi.listProducts();
-        setProducts(data);
+        const result = await productsApi.listProducts({
+          search: search || undefined,
+          category: category || undefined,
+          sort,
+          page: pagination.page,
+          limit: pagination.limit,
+        });
+        setProducts(result.products);
+        setPagination(result.pagination);
       } catch (err) {
         setLoadError(err.message || "Failed to load products");
       } finally {
@@ -31,7 +76,8 @@ const UserProducts = () => {
       }
     };
     fetchProducts();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, category, sort, pagination.page]);
 
   const productsById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
@@ -47,7 +93,29 @@ const UserProducts = () => {
     [cart, productsById]
   );
 
-  const cartTotal = cartItems.reduce((sum, item) => sum + item.product.unit_price * item.quantity, 0);
+  const priceFor = (product, quantity) => {
+    const tiers = product.price_tiers || [];
+    const applicable = tiers
+      .filter((t) => quantity >= t.min_quantity)
+      .sort((a, b) => b.min_quantity - a.min_quantity);
+    return applicable.length ? applicable[0].unit_price : product.unit_price;
+  };
+
+  const cartTotal = cartItems.reduce(
+    (sum, item) => sum + priceFor(item.product, item.quantity) * item.quantity,
+    0
+  );
+
+  const handleAddressSelect = (e) => {
+    const value = e.target.value;
+    setSelectedAddressId(value);
+    if (value === "new") {
+      setAddress("");
+    } else {
+      const found = addresses.find((a) => String(a.id) === value);
+      setAddress(found ? found.address_text : "");
+    }
+  };
 
   const handleReview = (e) => {
     e.preventDefault();
@@ -65,16 +133,19 @@ const UserProducts = () => {
   const handleConfirmOrder = async () => {
     setPlacing(true);
     try {
+      if (selectedAddressId === "new" && saveAddress) {
+        await addressesApi.createAddress({ address_text: address, is_default: addresses.length === 0 });
+      }
       const data = await ordersApi.placeOrder({
         delivery_address: address,
         items: cartItems.map((item) => ({ product_id: item.productId, quantity: item.quantity })),
       });
       toast.success(`Order placed! Order ID: ${data.order_id}`);
       clearCart();
-      setAddress("");
       setReviewing(false);
-      const refreshed = await productsApi.listProducts();
-      setProducts(refreshed);
+      const refreshed = await productsApi.listProducts({ page: pagination.page, limit: pagination.limit });
+      setProducts(refreshed.products);
+      setPagination(refreshed.pagination);
     } catch (err) {
       toast.error(err.message || "Order failed");
     } finally {
@@ -85,7 +156,7 @@ const UserProducts = () => {
   return (
     <div className="bg-gradient-to-b from-brand-600 to-brand-400 min-h-screen flex flex-col">
       {/* Hero Section */}
-      <section className="relative flex flex-col justify-center items-center h-[50vh] text-white text-center px-6 overflow-hidden">
+      <section className="relative flex flex-col justify-center items-center h-[40vh] text-white text-center px-6 overflow-hidden">
         <div className="absolute inset-0 pointer-events-none z-0">
           <div className="absolute w-[320px] h-[320px] bg-accent-300 opacity-20 rounded-full blur-3xl top-[-60px] left-[-100px] animate-pulse" />
           <div className="absolute w-[200px] h-[200px] bg-white opacity-10 rounded-full blur-2xl bottom-[-60px] right-[-60px] animate-pulse" />
@@ -101,15 +172,60 @@ const UserProducts = () => {
         </div>
       </section>
 
-      {/* Product Grid & Order Form */}
       <section className="flex-1 py-10 px-2 md:px-0">
         <div className="max-w-6xl mx-auto">
+          {/* Filter bar */}
+          <div className="bg-white rounded-xl shadow p-4 mb-8 flex flex-col md:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-2.5 text-brand-400" size={18} />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPagination((p) => ({ ...p, page: 1 }));
+                }}
+                placeholder="Search products..."
+                className="w-full pl-9 pr-3 py-2 border border-brand-300 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-400"
+              />
+            </div>
+            <select
+              value={category}
+              onChange={(e) => {
+                setCategory(e.target.value);
+                setPagination((p) => ({ ...p, page: 1 }));
+              }}
+              className="px-3 py-2 border border-brand-300 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-400"
+            >
+              <option value="">All categories</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              className="px-3 py-2 border border-brand-300 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-400"
+            >
+              <option value="newest">Newest</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+              <option value="name">Name</option>
+            </select>
+          </div>
+
           {loadError && (
             <div className="bg-red-100 text-red-700 rounded-lg p-4 mb-6 text-center shadow">{loadError}</div>
           )}
 
           {loadingProducts ? (
             <Spinner />
+          ) : products.length === 0 ? (
+            <div className="bg-white rounded-xl shadow p-8 text-center text-brand-800 mb-8">
+              No products match your search.
+            </div>
           ) : (
             <form onSubmit={handleReview} className="space-y-10">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
@@ -131,6 +247,11 @@ const UserProducts = () => {
                         </div>
                       )}
                     </div>
+                    {product.category && (
+                      <span className="text-[10px] uppercase tracking-wide text-accent-600 font-semibold mb-1">
+                        {product.category}
+                      </span>
+                    )}
                     <h2 className="text-lg font-semibold text-brand-800 mb-1 text-center">
                       {product.name}
                     </h2>
@@ -138,6 +259,15 @@ const UserProducts = () => {
                       {formatCurrency(product.unit_price)}{" "}
                       <span className="text-xs font-light">per unit</span>
                     </div>
+                    {product.price_tiers?.length > 0 && (
+                      <div className="text-[11px] text-brand-500 mb-1 text-center">
+                        {product.price_tiers.map((t) => (
+                          <div key={t.min_quantity}>
+                            {t.min_quantity}+ units: {formatCurrency(t.unit_price)}/unit
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div className="text-xs text-gray-500 mb-1">In stock: {product.stock_quantity}</div>
                     <p className="text-gray-600 text-xs mb-3 text-center min-h-[32px]">
                       {product.description?.slice(0, 50) || "No description."}
@@ -148,7 +278,9 @@ const UserProducts = () => {
                       min={0}
                       max={product.stock_quantity}
                       value={cart[product.id] || ""}
-                      onChange={(e) => setQuantity(product.id, Math.min(Number(e.target.value), product.stock_quantity))}
+                      onChange={(e) =>
+                        setQuantity(product.id, Math.min(Number(e.target.value), product.stock_quantity))
+                      }
                       placeholder="Qty"
                       className="w-20 px-2 py-1 border border-accent-300 rounded-full mb-2 text-center focus:outline-none focus:ring-2 focus:ring-accent-400 transition"
                     />
@@ -156,24 +288,69 @@ const UserProducts = () => {
                 ))}
               </div>
 
-              <div className="flex flex-col md:flex-row items-center gap-4 mt-8">
-                <div className="relative w-full md:w-2/3">
-                  <input
-                    type="text"
-                    id="delivery_address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    className="block px-4 py-3 w-full text-brand-900 bg-white rounded-full border border-accent-300 appearance-none focus:outline-none focus:ring-2 focus:ring-accent-400 peer transition"
-                    placeholder=" "
-                  />
-                  <label
-                    htmlFor="delivery_address"
-                    className="absolute left-4 top-3 text-gray-500 text-base pointer-events-none transition-all duration-200 peer-placeholder-shown:top-3 peer-placeholder-shown:text-base peer-focus:-top-5 peer-focus:text-sm peer-focus:text-accent-600 bg-white px-1"
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <div className="flex justify-center items-center gap-4 text-white">
+                  <button
+                    type="button"
+                    disabled={pagination.page <= 1}
+                    onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
+                    className="disabled:opacity-40"
+                    aria-label="Previous page"
                   >
-                    Delivery Address
-                  </label>
+                    <ChevronLeft />
+                  </button>
+                  <span>
+                    Page {pagination.page} of {pagination.totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={pagination.page >= pagination.totalPages}
+                    onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
+                    className="disabled:opacity-40"
+                    aria-label="Next page"
+                  >
+                    <ChevronRight />
+                  </button>
                 </div>
-                <Button type="submit" className="mt-4 md:mt-0 text-lg">
+              )}
+
+              {/* Delivery Address & CTA */}
+              <div className="flex flex-col gap-4 mt-8 bg-white rounded-xl shadow p-6">
+                {addresses.length > 0 && (
+                  <select
+                    value={selectedAddressId}
+                    onChange={handleAddressSelect}
+                    className="px-4 py-2 border border-accent-300 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-400"
+                  >
+                    {addresses.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.label}: {a.address_text}
+                      </option>
+                    ))}
+                    <option value="new">+ Use a new address</option>
+                  </select>
+                )}
+                {(selectedAddressId === "new" || addresses.length === 0) && (
+                  <>
+                    <textarea
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="Delivery address"
+                      rows={2}
+                      className="block px-4 py-3 w-full text-brand-900 bg-white rounded-lg border border-accent-300 focus:outline-none focus:ring-2 focus:ring-accent-400 transition"
+                    />
+                    <label className="flex items-center gap-2 text-sm text-brand-700">
+                      <input
+                        type="checkbox"
+                        checked={saveAddress}
+                        onChange={(e) => setSaveAddress(e.target.checked)}
+                      />
+                      Save this address for next time
+                    </label>
+                  </>
+                )}
+                <Button type="submit" className="self-start text-lg">
                   Review Order ({cartItems.length}) <ShoppingBag size={20} />
                 </Button>
               </div>
@@ -198,7 +375,7 @@ const UserProducts = () => {
                     <span className="text-gray-500">x{item.quantity}</span>
                   </div>
                   <span className="font-semibold text-brand-700">
-                    {formatCurrency(item.product.unit_price * item.quantity)}
+                    {formatCurrency(priceFor(item.product, item.quantity) * item.quantity)}
                   </span>
                 </div>
               ))}

@@ -32,7 +32,26 @@ src/
 npm install
 cp .env.example .env   # set VITE_BACKEND_URL
 npm run dev
+npm test                 # vitest
+npm run lint             # eslint
+npm run build             # production build
 ```
+
+## Features (phase 2)
+
+- Product search, category filter, sort, and pagination on the buyer catalogue.
+- Bulk-quantity pricing tiers shown per product; the cart/review total reflects the
+  applicable tier for the quantity selected (the backend is always the source of truth
+  for the final price charged).
+- Admin product image upload (drag a file in, or still paste a URL manually).
+- Admin CSV product bulk import with a per-row success/error summary.
+- Saved delivery addresses — pick a saved one or add + optionally save a new one at
+  checkout.
+- Order status timeline (pending → in progress → delivered, or cancelled) on every
+  order, plus a "Reorder" button that refills the cart from a past order.
+- Admin analytics dashboard: revenue, orders by status, top products, a 14-day revenue
+  chart, and a low-stock list.
+- Admin user management: promote/demote a user's admin role.
 
 ## Notable fixes in this pass
 

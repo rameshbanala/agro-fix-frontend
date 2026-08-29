@@ -24,6 +24,12 @@ const Navbar = () => {
       badge: isBuyer ? itemCount : 0,
     },
     { name: "Orders", path: userRole === "admin" ? "/orders" : "/user/orders" },
+    ...(userRole === "admin"
+      ? [
+          { name: "Analytics", path: "/admin/analytics" },
+          { name: "Users", path: "/admin/users" },
+        ]
+      : []),
   ];
 
   const authLinks = [

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Pencil, Trash } from "lucide-react";
+import { Pencil, Trash, Upload } from "lucide-react";
 import * as productsApi from "../../api/products";
 import { useToast } from "../../context/ToastContext";
 import ProductForm from "./ProductForm";
@@ -12,15 +12,35 @@ const ProductListAdmin = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
+  const [importing, setImporting] = useState(false);
   const toast = useToast();
 
   const loadProducts = async () => {
     setError("");
     try {
-      const data = await productsApi.listProducts();
-      setProducts(data);
+      const data = await productsApi.listProducts({ limit: 100 });
+      setProducts(data.products);
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const handleCsvSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const result = await productsApi.importProductsCsv(file);
+      if (result.createdCount) toast.success(`Imported ${result.createdCount} product(s).`);
+      if (result.errors?.length) {
+        toast.error(`${result.errors.length} row(s) failed: ${result.errors[0].error}`);
+      }
+      loadProducts();
+    } catch (err) {
+      toast.error(err.message || "CSV import failed");
+    } finally {
+      setImporting(false);
+      e.target.value = "";
     }
   };
 
@@ -44,7 +64,14 @@ const ProductListAdmin = () => {
 
   return (
     <div className="max-w-6xl mx-auto mt-10 px-2 sm:px-4 pb-16">
-      <h2 className="text-3xl font-bold text-brand-700 mb-8 text-center">Product Catalogue</h2>
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+        <h2 className="text-3xl font-bold text-brand-700 text-center">Product Catalogue</h2>
+        <label className="flex items-center gap-2 px-4 py-2 border border-dashed border-brand-400 rounded-md cursor-pointer text-sm text-brand-700 hover:bg-brand-50">
+          <Upload size={16} />
+          {importing ? "Importing..." : "Import CSV"}
+          <input type="file" accept=".csv" onChange={handleCsvSelect} className="hidden" disabled={importing} />
+        </label>
+      </div>
 
       {error && (
         <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-md text-center">{error}</div>
