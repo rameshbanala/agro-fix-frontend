@@ -10,6 +10,8 @@ import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import ProductListAdmin from "./pages/admin/ProductListAdmin";
 import AdminOrders from "./pages/admin/AdminOrders";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminUsers from "./pages/admin/AdminUsers";
 import UserProducts from "./pages/user/UserProducts";
 import UserOrders from "./pages/user/UserOrders";
 
@@ -38,6 +40,22 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={["admin"]}>
                   <AdminOrders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/analytics"
+              element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminAnalytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminUsers />
                 </ProtectedRoute>
               }
             />

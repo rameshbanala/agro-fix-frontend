@@ -1,13 +1,52 @@
 import { useEffect, useState } from "react";
-import { ShoppingBag, XCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ShoppingBag, XCircle, RotateCcw, Check } from "lucide-react";
 import * as ordersApi from "../../api/orders";
 import { useToast } from "../../context/ToastContext";
+import { useCart } from "../../context/CartContext";
 import Spinner from "../../components/ui/Spinner";
 import EmptyState from "../../components/ui/EmptyState";
 import StatusBadge from "../../components/ui/StatusBadge";
 import Button from "../../components/ui/Button";
 import ConfirmDialog from "../../components/ui/ConfirmDialog";
 import { formatCurrency, formatDateTime, orderTotal } from "../../utils/format";
+
+const TIMELINE_STEPS = ["pending", "in_progress", "delivered"];
+
+const OrderTimeline = ({ status, history }) => {
+  if (status === "cancelled") {
+    return <div className="text-sm text-red-600 font-medium">This order was cancelled.</div>;
+  }
+  const reachedIndex = TIMELINE_STEPS.indexOf(status);
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      {TIMELINE_STEPS.map((step, idx) => {
+        const done = idx <= reachedIndex;
+        const entry = history?.find((h) => h.status === step);
+        return (
+          <div key={step} className="flex items-center gap-2">
+            <div className="flex flex-col items-center">
+              <div
+                className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                  done ? "bg-brand-600 text-white" : "bg-gray-200 text-gray-400"
+                }`}
+              >
+                {done && <Check size={12} />}
+              </div>
+              <span className={`mt-1 ${done ? "text-brand-700 font-medium" : "text-gray-400"}`}>
+                {step.replace("_", " ")}
+              </span>
+              {entry && <span className="text-gray-400">{formatDateTime(entry.changed_at)}</span>}
+            </div>
+            {idx < TIMELINE_STEPS.length - 1 && (
+              <div className={`w-8 h-0.5 ${idx < reachedIndex ? "bg-brand-600" : "bg-gray-200"}`} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 const UserOrders = () => {
   const [orders, setOrders] = useState([]);
@@ -16,6 +55,8 @@ const UserOrders = () => {
   const [cancelTarget, setCancelTarget] = useState(null);
   const [error, setError] = useState(null);
   const toast = useToast();
+  const { setQuantity } = useCart();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -47,6 +88,11 @@ const UserOrders = () => {
       setCancelLoading(null);
       setCancelTarget(null);
     }
+  };
+
+  const handleReorder = (order) => {
+    order.items.forEach((item) => setQuantity(item.product_id, item.quantity));
+    navigate("/user/products", { state: { reordered: true } });
   };
 
   return (
@@ -85,6 +131,9 @@ const UserOrders = () => {
                     </div>
                     <StatusBadge status={order.status} />
                   </div>
+
+                  <OrderTimeline status={order.status} history={order.status_history} />
+
                   <div className="text-sm text-gray-700 mb-2">
                     <span className="font-medium">Delivery Address:</span> {order.delivery_address}
                   </div>
@@ -125,19 +174,24 @@ const UserOrders = () => {
                       </tbody>
                     </table>
                   </div>
-                  <div className="flex items-center justify-between mt-2">
+                  <div className="flex flex-wrap items-center justify-between gap-3 mt-2">
                     <div className="text-brand-900 font-bold text-lg">
                       Total: {formatCurrency(orderTotal(order))}
                     </div>
-                    {["pending", "in_progress"].includes(order.status) && (
-                      <Button
-                        variant="dangerLight"
-                        onClick={() => setCancelTarget(order.id)}
-                        disabled={cancelLoading === order.id}
-                      >
-                        <XCircle size={18} /> Cancel Order
+                    <div className="flex gap-3">
+                      <Button variant="secondary" onClick={() => handleReorder(order)}>
+                        <RotateCcw size={18} /> Reorder
                       </Button>
-                    )}
+                      {["pending", "in_progress"].includes(order.status) && (
+                        <Button
+                          variant="dangerLight"
+                          onClick={() => setCancelTarget(order.id)}
+                          disabled={cancelLoading === order.id}
+                        >
+                          <XCircle size={18} /> Cancel Order
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
